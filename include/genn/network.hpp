@@ -99,6 +99,7 @@ public:
 	}
 };
 
+template <typename TFRandInt, typename TFRandUnif, typename TFRandNorm>
 class Mutator {
 	float 
 		add_node_prob,
@@ -110,21 +111,18 @@ class Mutator {
 		weight_delta,
 		bias_delta;
 	
-	std::function<int()> rand_int;
-	std::function<float()> rand_unif, rand_norm;
-	
 	void mutate_topology() {
-		if(rand_unif() < add_node_prob)
+		if(TFRandUnif() < add_node_prob)
 			net->addNode();
 		
-		if(rand_unif() < del_node_prob && net->reserved < net->nodes_count)
-			net->delNode((rand_int() % (net->nodes_count - net->reserved)) + net->reserved);
+		if(TFRandUnif() < del_node_prob && net->reserved < net->nodes_count)
+			net->delNode((TFRandInt() % (net->nodes_count - net->reserved)) + net->reserved);
 		
-		if(rand_unif() < add_link_prob)
-			net->addLink(Link(rand_int() % net->nodes_count, rand_int() % net->nodes_count));
+		if(TFRandUnif() < add_link_prob)
+			net->addLink(Link(TFRandInt() % net->nodes_count, TFRandInt() % net->nodes_count));
 		
-		if(rand_unif() < del_link_prob)
-			net->delLink(rand_int() % net->links_count);
+		if(TFRandUnif() < del_link_prob)
+			net->delLink(TFRandInt() % net->links_count);
 	}
 	
 	void mutate(Network *net) {
@@ -132,11 +130,11 @@ class Mutator {
 		mutate_topology();
 		
 		for(Node &n : net->nodes) {
-			n.bias += bias_delta*rand_norm();
+			n.bias += bias_delta*TFRandNorm();
 		}
 		
 		for(Link &l : net->links) {
-			l.weight += weight_delta*rand_norm();
+			l.weight += weight_delta*TFRandNorm();
 		}
 	}
 };
