@@ -1,6 +1,6 @@
 #pragma once
 
-#include <genn/gene.hpp>
+#include <genn/genetics.hpp>
 #include <cmath>
 #include <vector>
 
@@ -15,7 +15,7 @@ struct NodeIn {
 struct Node : public NodeIn, public NodeOut {
 	float bias;
 	
-	Node(const NodeGene &gene) {
+	Node(const Node &gene) {
 		bias = gene.bias;
 	}
 	void update() {
@@ -29,7 +29,7 @@ struct Link {
 	const NodeOut *src = nullptr;
 	NodeIn *dst = nullptr;
 	
-	Link(const LinkGene &gene) {
+	Link(const Link &gene) {
 		weight = gene.weight;
 	}
 	
@@ -46,14 +46,14 @@ public:
 	std::vector<NodeIn *> inputs;
 	std::vector<const NodeOut *> outputs;
 	
-	Network(const NetworkGene &gene) {
+	Network(const Network &gene) {
 		std::map<NodeID, Node *> index;
-		for(const std::pair<NodeID, NodeGene> &pair : gene.nodes) {
+		for(const std::pair<NodeID, Node> &pair : gene.nodes) {
 			nodes.push_back(Node(pair.second));
 			index.insert(std::make_pair(pair.first, &nodes.back()));
 		}
 		
-		for(const std::pair<LinkID, LinkGene> &pair : gene.links) {
+		for(const std::pair<LinkID, Link> &pair : gene.links) {
 			auto src = index.find(pair.first.src);
 			auto dst = index.find(pair.first.dst);
 			if(src == index.end() || dst == index.end()) {

@@ -4,9 +4,9 @@
 
 typedef int NodeID;
 
-struct NodeGene {
+struct Node {
 	float bias = 0.0f;
-	NodeGene(float b = 0.0f) {
+	Node(float b = 0.0f) {
 		bias = b;
 	}
 };
@@ -26,25 +26,23 @@ struct LinkID {
 	bool operator <= (const LinkID &id) const {
 		return src < id.src || (src == id.src && dst <= id.dst);
 	}
-	bool operator != (const LinkID &id) const { return !(*this == id);}
-	bool operator >= (const LinkID &id) const { return !(*this < id);}
-	bool operator > (const LinkID &id) const { return !(*this <= id);}
+	bool operator != (const LinkID &id) const { return !(*this == id); }
+	bool operator >= (const LinkID &id) const { return !(*this < id); }
+	bool operator > (const LinkID &id) const { return !(*this <= id); }
 };
 
-struct LinkGene {
+struct Link {
 	float weight = 0.0f;
-	LinkGene(float w = 0.0f) {
+	Link(float w = 0.0f) {
 		weight = w;
 	}
 };
 
-struct NetworkGene {
-	std::map<NodeID, NodeGene> nodes;
-	std::map<LinkID, LinkGene> links;
+struct Network {
+	std::map<NodeID, Node> nodes;
+	std::map<LinkID, Link> links;
 	
-	
-	// hybridize network
-	void include(const NetworkGene &gene) {
+	void hybridize(const Network &net) {
 		// ...
 	}
 };
