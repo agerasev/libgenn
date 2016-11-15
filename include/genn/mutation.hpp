@@ -36,12 +36,19 @@ public:
 		bool naddf = rand.unif() < add_node_prob;
 		bool ndelf = nsize > 0 && rand.unif() < del_node_prob;
 		if(naddf || ndelf) {
-			NodeID aid = 1;
+			NodeID aid = 1, cid = 0;
 			NodeID did = 0;
 			int dcnt = ndelf ? rand.int_() % nsize : 0;
+			int ccnt = nsize > 0 ? rand.int_() % nsize : 0;
 			for(auto &p : net->nodes) {
-				if(naddf && p.first == aid) {
-					aid += 1;
+				if(naddf) {
+					if(p.first == aid) {
+						aid += 1;
+					}
+					if(ccnt == 0) {
+						cid = p.first;
+					}
+					ccnt -= 1;
 				}
 				if(ndelf) {
 					if(dcnt == 0) {
@@ -52,6 +59,9 @@ public:
 			}
 			if(naddf) {
 				net->nodes.insert(std::make_pair(aid, Node()));
+				if(cid > 0) {
+					net->links.insert(std::make_pair(LinkID(aid, cid), Link()));
+				}
 			}
 			if(ndelf) {
 				net->nodes.erase(did);
