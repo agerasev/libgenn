@@ -4,33 +4,33 @@
 #include <cmath>
 #include <vector>
 
-struct NodeOut {
-	float out;
-};
 
-struct NodeIn {
+struct INode {
 	float in;
-};
-
-struct Node : public NodeIn, public NodeOut {
+	float out;
 	float bias;
 	
-	Node(const Node &gene) {
-		bias = gene.bias;
+	INode() = default;
+	
+	INode(const Node &node) {
+		bias = node.bias;
 	}
+	
 	void update() {
-		out = tanhf(in) + bias;
+		out = tanhf(in + bias);
 		in = 0;
 	}
 };
 
-struct Link {
+struct ILink {
 	float weight;
-	const NodeOut *src = nullptr;
-	NodeIn *dst = nullptr;
+	const INode *src = nullptr;
+	INode *dst = nullptr;
 	
-	Link(const Link &gene) {
-		weight = gene.weight;
+	ILink() = default;
+	
+	ILink(const Link &link) {
+		weight = link.weight;
 	}
 	
 	void transmit() {
@@ -38,30 +38,51 @@ struct Link {
 	}
 };
 
-class Network {
+class INetwork {
 public:
-	std::vector<Node> nodes;
-	std::vector<Link> links;
+	std::vector<INode> nodes;
+	std::vector<ILink> links;
 	
-	std::vector<NodeIn *> inputs;
-	std::vector<const NodeOut *> outputs;
-	
-	Network(const Network &gene) {
-		std::map<NodeID, Node *> index;
-		for(const std::pair<NodeID, Node> &pair : gene.nodes) {
-			nodes.push_back(Node(pair.second));
-			index.insert(std::make_pair(pair.first, &nodes.back()));
+	void build(const Network &net) {
+		int i;
+		nodes.resize(net.nodes.size());
+		links.resize(net.links.size());
+		
+		std::map<NodeID, INode *> index;
+		i = 0;
+		for(const std::pair<NodeID, INode> &pair : net.nodes) {
+			nodes[i] = INode(pair.second);
+			index.insert(std::make_pair(pair.first, &nodes[i]));
+			++i;
 		}
 		
-		for(const std::pair<LinkID, Link> &pair : gene.links) {
+		i = 0;
+		for(const std::pair<LinkID, ILink> &pair : net.links) {
 			auto src = index.find(pair.first.src);
 			auto dst = index.find(pair.first.dst);
 			if(src == index.end() || dst == index.end()) {
 				continue;
 			}
-			links.push_back(Link(pair.second));
-			links.back().src = src->second;
-			links.back().dst = dst->second;
+			links[i] = ILink(pair.second);
+			links[i].src = src->second;
+			links[i].dst = dst->second;
+			++i;
+		}
+	}
+	
+	void step() {
+		for(INode &n : nodes) {
+			n.update();
+		}
+		for(ILink &l : links) {
+			l.transmit();
+		}
+	}
+	
+	void clear() {
+		for(INode &n : nodes) {
+			n.in = 0;
+			n.out = 0;
 		}
 	}
 };
