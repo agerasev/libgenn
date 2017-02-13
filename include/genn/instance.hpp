@@ -5,14 +5,15 @@
 #include <vector>
 
 
-struct INode {
+struct NodeInst {
+	NodeID id;
 	float in;
 	float out;
 	float bias;
 	
-	INode() = default;
+	NodeInst() = default;
 	
-	INode(const Node &node) {
+	NodeInst(NodeID id, const NodeGene &node) : id(id) {
 		bias = node.bias;
 	}
 	
@@ -22,14 +23,15 @@ struct INode {
 	}
 };
 
-struct ILink {
+struct LinkInst {
+	LinkID id;
 	float weight;
-	const INode *src = nullptr;
-	INode *dst = nullptr;
+	const NodeInst *src = nullptr;
+	NodeInst *dst = nullptr;
 	
-	ILink() = default;
+	LinkInst() = default;
 	
-	ILink(const Link &link) {
+	LinkInst(LinkID id, const LinkGene &link) : id(id) {
 		weight = link.weight;
 	}
 	
@@ -38,49 +40,64 @@ struct ILink {
 	}
 };
 
-class INetwork {
+class NetworkInst {
 public:
-	std::vector<INode> nodes;
-	std::vector<ILink> links;
+	std::vector<NodeInst> nodes;
+	std::vector<LinkInst> links;
 	
-	void build(const Network &net) {
+	void build(const NetworkGene &net) {
 		int i;
 		nodes.resize(net.nodes.size());
 		links.resize(net.links.size());
 		
-		std::map<NodeID, INode *> index;
+		std::map<NodeID, NodeInst*> index;
 		i = 0;
-		for(const std::pair<NodeID, INode> &pair : net.nodes) {
-			nodes[i] = INode(pair.second);
+		for(const std::pair<NodeID, NodeGene> &pair : net.nodes) {
+			nodes[i] = NodeInst(pair.first, pair.second);
 			index.insert(std::make_pair(pair.first, &nodes[i]));
 			++i;
 		}
 		
 		i = 0;
-		for(const std::pair<LinkID, ILink> &pair : net.links) {
+		for(const std::pair<LinkID, LinkGene> &pair : net.links) {
 			auto src = index.find(pair.first.src);
 			auto dst = index.find(pair.first.dst);
 			if(src == index.end() || dst == index.end()) {
 				continue;
 			}
-			links[i] = ILink(pair.second);
+			links[i] = LinkInst(pair.first, pair.second);
 			links[i].src = src->second;
 			links[i].dst = dst->second;
 			++i;
 		}
 	}
 	
+	void upload(NetworkGene &net) {
+		for(NodeInst &n : nodes) {
+			auto i = net.nodes.find(n.id);
+			if (i != net.nodes.end()) {
+				i->second.bias = n.bias;
+			}
+		}
+		for(LinkInst &l : links) {
+			auto i = net.links.find(l.id);
+			if (i != net.links.end()) {
+				i->second.weight = l.weight;
+			}
+		}
+	}
+	
 	void step() {
-		for(INode &n : nodes) {
+		for(NodeInst &n : nodes) {
 			n.update();
 		}
-		for(ILink &l : links) {
+		for(LinkInst &l : links) {
 			l.transmit();
 		}
 	}
 	
 	void clear() {
-		for(INode &n : nodes) {
+		for(NodeInst &n : nodes) {
 			n.in = 0;
 			n.out = 0;
 		}

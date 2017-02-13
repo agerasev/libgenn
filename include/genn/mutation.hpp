@@ -3,6 +3,7 @@
 #include <random>
 
 #include "genetics.hpp"
+#include "instance.hpp"
 
 class RandEngine {
 private:
@@ -16,22 +17,9 @@ public:
 	double norm() { return nr(re); }
 };
 
-class NetworkMutable : public Network {
-public:
-	float weight_delta = 1e-1;
-	float bias_delta = 1e-1;
-};
-
 class Mutator {
 public:
-	float 
-		add_node_prob = 0.002,
-		del_node_prob = 0.002,
-		add_link_prob = 0.02,
-		del_link_prob = 0.02;
-	
 	int min_nodes = 0;
-	
 	RandEngine rand;
 	
 public:
@@ -39,111 +27,97 @@ public:
 		min_nodes = min_nodes_;
 	}
 	
-	int mutate_nodes(NetworkMutable *net) {
-		int nsize = net->nodes.size();
-		bool naddf = rand.unif() < add_node_prob;
-		bool ndelf = nsize > min_nodes && rand.unif() < del_node_prob;
-		if(naddf || ndelf) {
-			NodeID aid = 1, cid = 0;
-			NodeID did = 0;
-			int dcnt = ndelf ? min_nodes + (rand.int_() % (nsize - min_nodes)) : 0;
-			int ccnt = nsize > 0 ? rand.int_() % nsize : 0;
-			for(auto &p : net->nodes) {
-				if(naddf) {
-					if(p.first == aid) {
-						aid += 1;
-					}
-					if(ccnt == 0) {
-						cid = p.first;
-					}
-					ccnt -= 1;
-				}
-				if(ndelf) {
-					if(dcnt == 0) {
-						did = p.first;
-					}
-					dcnt -= 1;
-				}
+	int add_rand_nodes(NetworkGene *net, int count) {
+		NodeID id = 1;
+		for (int i = 0; i < count; ++i) {
+			while (net->nodes.find(id) == net->nodes.end()) {
+				id += 1;
 			}
-			if(naddf) {
-				net->nodes.insert(std::make_pair(aid, Node(rand.norm())));
-				if(cid > 0) {
-					net->links.insert(std::make_pair(LinkID(aid, cid), Link()));
-				}
+			net->nodes.insert(std::make_pair(id, NodeGene(rand.norm())));
+			id += 1;
+		}
+		
+		return count;
+	}
+	
+	int del_rand_nodes(NetworkGene *net, int count) {
+		if (net->nodes.size() - count < min_nodes) {
+			count = net->nodes.size() - min_nodes;
+		}
+		
+		int mnc = min_nodes;
+		int dn = count; // nodes to delete
+		int rn = net->nodes.size(); // remaining nodes
+		for(auto i = net->nodes.begin(); i != net->nodes.end();) {
+			if(mnc <= 0 && (rand.int_() % rn) < dn) {
+				net->nodes.erase(i++);
+				dn -= 1;
+			} else {
+				++i;
 			}
-			if(ndelf) {
-				net->nodes.erase(did);
-				for(auto ii = net->links.begin(); ii != net->links.end();) {
-					if(ii->first.src != did && ii->first.dst != did) {
-						++ii;
-					} else {
-						net->links.erase(ii++);
+			rn -= 1;
+			mnc -= 1;
+		}
+		
+		net->del_hanging_links();
+		
+		return count;
+	}
+	
+	int add_rand_links(NetworkGene *net, int count) {
+		int nn = net->nodes.size();
+		int nl = net->links.size();
+		int rl = nn*nn - nl; // remaining links
+		if (count > rl) {
+			count = rl;
+		}
+		int al = count; // links to add
+		
+		for (auto &ps : net->nodes) {
+			for (auto &pd : net->nodes) {
+				LinkID lid(ps.first, pd.first);
+				if (net->links.find(lid) == net->links.end()) {
+					if ((rand.int_() % rl) < al) {
+						net->links.insert(std::make_pair(lid, LinkGene(rand.norm())));
+						al -= 1;
 					}
+					rl -= 1;
 				}
 			}
 		}
-		return int(naddf) + int(ndelf);
+		
+		return count;
 	}
 	
-	int mutate_links(NetworkMutable *net) {
-		int nsize = net->nodes.size();
-		bool laddf = rand.unif() < add_link_prob;
-		bool ldelf = rand.unif() < del_link_prob;
-		if(nsize > 0 && (laddf || ldelf)) {
-			NodeID nid[4];
-			int ncnt[4];
-			for(int i = 0; i < 4; ++i) { ncnt[i] = rand.int_() % nsize; }
-			for(auto &p : net->nodes) {
-				for(int i = 0; i < 4; ++i) {
-					if(ncnt[i] == 0) {
-						nid[i] = p.first;
+	int del_rand_links(NetworkGene *net, int count) {
+		int rl = net->links.size(); // remaining links
+		if (count > rl) {
+			count = rl;
+		}
+		int dl = count; // links to delete
+		
+		for (auto &ps : net->nodes) {
+			for (auto &pd : net->nodes) {
+				LinkID lid(ps.first, pd.first);
+				if (net->links.find(lid) != net->links.end()) {
+					if ((rand.int_() % rl) < dl) {
+						net->links.erase(lid);
+						dl -= 1;
 					}
-					ncnt[i] -= 1;
+					rl -= 1;
 				}
-			}
-			if(laddf) {
-				LinkID aid(nid[0], nid[1]);
-				if(net->links.find(aid) == net->links.end()) {
-					net->links.insert(std::make_pair(aid, Link(rand.norm())));
-				}
-			}
-			if(ldelf) {
-				LinkID did(nid[2], nid[3]);
-				net->links.erase(did);
 			}
 		}
-		return int(laddf) + int(ldelf);
+		
+		return count;
 	}
 	
-	int mutate(NetworkMutable *net) {
-		int ret = 0;
-		ret += mutate_nodes(net);
-		ret += mutate_links(net);
-		
-		double base = 1.2;
-		double minv = 1e-6;
-		double maxv = 1e0;
-		
+	void step_rand_weights(NetworkGene *net, double delta) {
 		for(auto &p : net->nodes) {
-			p.second.bias += net->bias_delta*rand.norm();
+			p.second.bias += delta*rand.norm();
 		}
-		net->bias_delta *= pow(base, 2*rand.unif() - 1);
-		if(net->bias_delta < minv) {
-			net->bias_delta = minv;
-		} else if(net->bias_delta > maxv) {
-			net->bias_delta = maxv;
-		}
-		
 		for(auto &p : net->links) {
-			p.second.weight += net->weight_delta*rand.norm();
+			p.second.weight += delta*rand.norm();
 		}
-		net->weight_delta *= pow(base, 2*rand.unif() - 1);
-		if(net->weight_delta < minv) {
-			net->weight_delta = minv;
-		} else if(net->weight_delta > maxv) {
-			net->weight_delta = maxv;
-		}
-		
-		return ret;
 	}
 };
