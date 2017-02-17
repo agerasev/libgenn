@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <utility>
 
 typedef int NodeID;
 
@@ -38,29 +39,95 @@ struct LinkGene {
 	}
 };
 
+template <typename I, typename T>
+struct GeneMap {
+	std::map<I, T> map;
+	
+	int size() const {
+		return map.size();
+	}
+	
+	bool add(I id, T elem) {
+		auto r = map.insert(std::make_pair(id, elem));
+		return r.second;
+	}
+	
+	bool del(I id) {
+		auto r = map.erase(id);
+		return r > 0;
+	}
+	
+	T *find(I id) {
+		auto it = map.find(id);
+		if (it != map.end()) {
+			return &it->second;
+		}
+		return nullptr;
+	}
+	
+	const T *find(I id) const {
+		auto it = map.find(id);
+		if (it != map.end()) {
+			return &it->second;
+		}
+		return nullptr;
+	}
+	
+	T &get(I id) {
+		return map.find(id)->second;
+	}
+	
+	const T &get(I id) const {
+		return map.find(id)->second;
+	}
+	
+	template <typename Fn>
+	void iter(Fn func) {
+		for (auto &p : map) {
+			func(p.first, p.second);
+		}
+	}
+	
+	template <typename Fn>
+	void iter(Fn func) const {
+		for (auto &p : map) {
+			func(p.first, p.second);
+		}
+	}
+	
+	template <typename Fn>
+	void del_iter(Fn func) {
+		for (auto i = map.begin(); i != map.end();) {
+			if (func(i->first, i->second)) {
+				map.erase(i++);
+			} else {
+				++i;
+			}
+		}
+	}
+};
+
 struct NetworkGene {
-	std::map<NodeID, NodeGene> nodes;
-	std::map<LinkID, LinkGene> links;
+	GeneMap<NodeID, NodeGene> nodes;
+	GeneMap<LinkID, LinkGene> links;
 	
 	int del_hanging_links() {
 		int cnt = 0;
 		
-		for(auto i = links.begin(); i != links.end();) {
-			if(
-				nodes.find(i->first.src) != nodes.end() && 
-				nodes.find(i->first.dst) != nodes.end()
-			) {
-				++i;
-			} else {
-				links.erase(i++);
+		links.del_iter([&] (LinkID id, LinkGene link) -> bool {
+			if (nodes.find(id.src) == nullptr || nodes.find(id.dst) == nullptr) {
 				cnt += 1;
+				return true;
 			}
-		}
+			return false;
+		});
 		
 		return cnt;
 	}
 	
-	void hybridize(const NetworkGene &net) {
-		// ...
+	/*
+	void hybrid(const NetworkGene &net) {
+		
 	}
+	*/
 };

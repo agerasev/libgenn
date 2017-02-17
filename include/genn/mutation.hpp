@@ -30,10 +30,10 @@ public:
 	int add_rand_nodes(NetworkGene *net, int count) {
 		NodeID id = 1;
 		for (int i = 0; i < count; ++i) {
-			while (net->nodes.find(id) == net->nodes.end()) {
+			while (net->nodes.find(id) == nullptr) {
 				id += 1;
 			}
-			net->nodes.insert(std::make_pair(id, NodeGene(rand.norm())));
+			net->nodes.add(id, NodeGene(rand.norm()));
 			id += 1;
 		}
 		
@@ -48,16 +48,16 @@ public:
 		int mnc = min_nodes;
 		int dn = count; // nodes to delete
 		int rn = net->nodes.size(); // remaining nodes
-		for(auto i = net->nodes.begin(); i != net->nodes.end();) {
+		net->nodes.del_iter([&] (NodeID id, const NodeGene &node) -> bool {
+			bool df = false;
 			if(mnc <= 0 && (rand.int_() % rn) < dn) {
-				net->nodes.erase(i++);
 				dn -= 1;
-			} else {
-				++i;
+				df = true;
 			}
 			rn -= 1;
 			mnc -= 1;
-		}
+			return df;
+		});
 		
 		net->del_hanging_links();
 		
@@ -73,18 +73,18 @@ public:
 		}
 		int al = count; // links to add
 		
-		for (auto &ps : net->nodes) {
-			for (auto &pd : net->nodes) {
-				LinkID lid(ps.first, pd.first);
-				if (net->links.find(lid) == net->links.end()) {
+		net->nodes.iter([&] (NodeID sid, const NodeGene &src) {
+			net->nodes.iter([&] (NodeID did, const NodeGene &dst) {
+				LinkID lid(sid, did);
+				if (net->links.find(lid) == nullptr) {
 					if ((rand.int_() % rl) < al) {
-						net->links.insert(std::make_pair(lid, LinkGene(rand.norm())));
+						net->links.add(lid, LinkGene(rand.norm()));
 						al -= 1;
 					}
 					rl -= 1;
 				}
-			}
-		}
+			});
+		});
 		
 		return count;
 	}
@@ -96,28 +96,28 @@ public:
 		}
 		int dl = count; // links to delete
 		
-		for (auto &ps : net->nodes) {
-			for (auto &pd : net->nodes) {
-				LinkID lid(ps.first, pd.first);
-				if (net->links.find(lid) != net->links.end()) {
+		net->nodes.iter([&] (NodeID sid, const NodeGene &src) {
+			net->nodes.iter([&] (NodeID did, const NodeGene &dst) {
+				LinkID lid(sid, did);
+				if (net->links.find(lid) != nullptr) {
 					if ((rand.int_() % rl) < dl) {
-						net->links.erase(lid);
+						net->links.del(lid);
 						dl -= 1;
 					}
 					rl -= 1;
 				}
-			}
-		}
+			});
+		});
 		
 		return count;
 	}
 	
 	void step_rand_weights(NetworkGene *net, double delta) {
-		for(auto &p : net->nodes) {
-			p.second.bias += delta*rand.norm();
-		}
-		for(auto &p : net->links) {
-			p.second.weight += delta*rand.norm();
-		}
+		net->nodes.iter([&] (NodeID id, NodeGene &node) {
+			node.bias += delta*rand.norm();
+		});
+		net->links.iter([&] (LinkID id, LinkGene &link) {
+			link.weight += delta*rand.norm();
+		});
 	}
 };

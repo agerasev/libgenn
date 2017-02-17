@@ -52,38 +52,47 @@ public:
 		
 		std::map<NodeID, NodeInst*> index;
 		i = 0;
-		for(const std::pair<NodeID, NodeGene> &pair : net.nodes) {
-			nodes[i] = NodeInst(pair.first, pair.second);
-			index.insert(std::make_pair(pair.first, &nodes[i]));
+		net.nodes.iter([&] (NodeID id, const NodeGene &node) {
+			nodes[i] = NodeInst(id, node);
+			index.insert(std::make_pair(id, &nodes[i]));
 			++i;
-		}
+		});
 		
 		i = 0;
-		for(const std::pair<LinkID, LinkGene> &pair : net.links) {
-			auto src = index.find(pair.first.src);
-			auto dst = index.find(pair.first.dst);
-			if(src == index.end() || dst == index.end()) {
-				continue;
+		net.links.iter([&] (LinkID id, const LinkGene &link) {
+			auto src = index.find(id.src);
+			auto dst = index.find(id.dst);
+			if(src != index.end() && dst != index.end()) {
+				links[i] = LinkInst(id, link);
+				links[i].src = src->second;
+				links[i].dst = dst->second;
+				++i;
 			}
-			links[i] = LinkInst(pair.first, pair.second);
-			links[i].src = src->second;
-			links[i].dst = dst->second;
-			++i;
-		}
+		});
+		links.resize(i);
 	}
 	
-	void upload(NetworkGene &net) {
+	void upload(NetworkGene *net) {
 		for(NodeInst &n : nodes) {
-			auto i = net.nodes.find(n.id);
-			if (i != net.nodes.end()) {
-				i->second.bias = n.bias;
+			NodeGene *nptr = net->nodes.find(n.id);
+			if (nptr != nullptr) {
+				nptr->bias = n.bias;
 			}
 		}
 		for(LinkInst &l : links) {
-			auto i = net.links.find(l.id);
-			if (i != net.links.end()) {
-				i->second.weight = l.weight;
+			LinkGene *lptr = net->links.find(l.id);
+			if (lptr != nullptr) {
+				lptr->weight = l.weight;
 			}
+		}
+	}
+	
+	void load_from(const NetworkInst &inst) {
+		for(int i = 0; i < int(nodes.size()); ++i) {
+			nodes[i].bias = inst.nodes[i].bias;
+		}
+		for(int i = 0; i < int(links.size()); ++i) {
+			links[i].weight = inst.links[i].weight;
 		}
 	}
 	
