@@ -1,21 +1,9 @@
 #pragma once
 
-#include <random>
-
 #include "genetics.hpp"
 #include "instance.hpp"
+#include "random.hpp"
 
-class RandEngine {
-private:
-	std::minstd_rand re;
-	std::uniform_int_distribution<> ui;
-	std::uniform_real_distribution<> ur;
-	std::normal_distribution<> nr;
-public:
-	int int_() { return ui(re); }
-	double unif() { return ur(re); }
-	double norm() { return nr(re); }
-};
 
 class Mutator {
 public:
@@ -112,12 +100,12 @@ public:
 		return count;
 	}
 	
-	void step_rand_weights(NetworkGene *net, double delta) {
-		net->nodes.iter([&] (NodeID id, NodeGene &node) {
+	void step_rand_weights(NetworkInst *net, double delta) {
+		for (NodeInst &node : net->nodes) {
 			node.bias += delta*rand.norm();
-		});
-		net->links.iter([&] (LinkID id, LinkGene &link) {
+		}
+		for (LinkInst &link : net->links) {
 			link.weight += delta*rand.norm();
-		});
+		}
 	}
 };

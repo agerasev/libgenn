@@ -19,7 +19,7 @@ struct NodeInst {
 	
 	void update() {
 		out = tanhf(in + bias);
-		in = 0;
+		in = 0.0;
 	}
 };
 
